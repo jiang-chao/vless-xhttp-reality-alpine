@@ -13,6 +13,10 @@
 - 适配 Alpine 3.21/3.23 的 OpenRC 服务与 x86_64 / aarch64
 - 下载官方 Xray 发布包时校验 SHA-256
 
+## 故障排查
+
+Xray 26.x 的 `xray x25519` 输出使用 `PrivateKey:` 与 `Password (PublicKey):` 字段。脚本会把 `Password` 当作 REALITY 客户端的公钥值，并兼容较早版本的 `Private key:` / `Public key:` 输出格式。若解析仍失败，错误会列出检测到的字段名，不会输出密钥内容。
+
 ## NAT/LXC 前提
 
 1. LXC 必须是 Alpine 3.21 或更新版本且使用 OpenRC（能运行 `rc-service`）。

@@ -91,11 +91,15 @@ make_keys() {
     }
   ' <<<"$pair" | tr -d '\r')"
   PUBLIC_KEY="$(awk -F: '
-    /^[[:space:]]*[Pp]assword[[:space:]]*:/ || /^[[:space:]]*[Pp]ublic[ _-]*[Kk]ey[[:space:]]*:/ {
+    /^[[:space:]]*[Pp]assword([[:space:]]*\([Pp]ublic[Kk]ey\))?[[:space:]]*:/ || /^[[:space:]]*[Pp]ublic[ _-]*[Kk]ey[[:space:]]*:/ {
       sub(/^[^:]*:[[:space:]]*/, ""); print; exit
     }
   ' <<<"$pair" | tr -d '\r')"
-  [ -n "$PRIVATE_KEY" ] && [ -n "$PUBLIC_KEY" ] || die '无法生成 REALITY 密钥。'
+  if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
+    local labels
+    labels="$(awk -F: '/^[[:space:]]*[[:alnum:] _()-]+:/ {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1); print $1}' <<<"$pair" | paste -sd ', ' -)"
+    die "无法解析 REALITY 密钥字段（检测到字段：${labels:-无}）。请确认 Xray x25519 输出格式。"
+  fi
 }
 
 write_config() {
