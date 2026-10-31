@@ -91,6 +91,17 @@ ask_password() {
   done
 }
 
+make_json_temp() {
+  local tmp json_tmp
+  tmp="$(mktemp "${XRAY_DIR}/.config.XXXXXX")" || die '无法创建临时配置文件。'
+  json_tmp="${tmp}.json"
+  if ! mv -- "$tmp" "$json_tmp"; then
+    rm -f "$tmp"
+    die '无法设置临时配置文件名。'
+  fi
+  printf '%s\n' "$json_tmp"
+}
+
 detect_public_host() {
   local host
   host="$(curl -4fsS --max-time 8 https://api64.ipify.org 2>/dev/null || true)"
@@ -259,7 +270,7 @@ socks5_add() {
   [[ "$password" != *:* && "$password" != *$'\n'* ]] || die '密码不能包含冒号或换行。'
   local next_config
   # Xray chooses the config parser from the filename suffix; keep .json last.
-  next_config="$(mktemp "${XRAY_DIR}/.config.XXXXXX.json")"
+  next_config="$(make_json_temp)"
   if ! jq --argjson port "$port" --arg user "$username" --arg pass "$password" \
     '.inbounds += [{tag:("socks5-" + ($port|tostring)),listen:"0.0.0.0",port:$port,protocol:"socks",settings:{auth:"password",users:[{user:$user,pass:$pass}],udp:true}}]' \
     "$CONFIG_FILE" >"$next_config"; then
@@ -280,7 +291,7 @@ socks5_delete() {
   [ -n "$port" ] || die '用法：sb del socks5 <端口>'
   valid_port "$port" || die '端口必须是 1–65535 的整数。'
   jq -e --arg tag "socks5-${port}" 'any(.inbounds[]?; .tag == $tag)' "$CONFIG_FILE" >/dev/null || die "未找到端口 ${port} 的 SOCKS5 入站。"
-  next_config="$(mktemp "${XRAY_DIR}/.config.XXXXXX.json")"
+  next_config="$(make_json_temp)"
   jq --arg tag "socks5-${port}" '.inbounds |= map(select(.tag != $tag))' "$CONFIG_FILE" >"$next_config"
   chmod 600 "$next_config"
   apply_config_change "$next_config"
