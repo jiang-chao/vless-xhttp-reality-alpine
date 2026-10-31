@@ -79,10 +79,10 @@ ask_password() {
   local first second
   while :; do
     read -r -s -p '请输入 SOCKS5 密码（输入不回显）: ' first
-    printf '\n'
+    printf '\n' >&2
     [ -n "$first" ] || { warn '密码不能为空。'; continue; }
     read -r -s -p '请再次输入密码确认: ' second
-    printf '\n'
+    printf '\n' >&2
     if [ "$first" = "$second" ]; then
       printf '%s' "$first"
       return 0
