@@ -26,11 +26,10 @@ Xray 26.x 的 `xray x25519` 输出使用 `PrivateKey:` 与 `Password (PublicKey)
 
 ## 安装
 
-将 `sb-xhttp-reality-alpine.sh` 上传到 LXC 后执行：
+一键安装运行脚本
 
 ```sh
-apk add --no-cache bash
-bash sb-xhttp-reality-alpine.sh install
+apk add --no-cache bash curl && curl -fL -o /root/sb-xhttp-reality-alpine.sh https://raw.githubusercontent.com/jiang-chao/vless-xhttp-reality-alpine/main/sb-xhttp-reality-alpine.sh && chmod 700 /root/sb-xhttp-reality-alpine.sh && bash /root/sb-xhttp-reality-alpine.sh install
 ```
 
 安装完成后，管理命令为：
