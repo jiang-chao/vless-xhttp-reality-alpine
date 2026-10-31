@@ -183,10 +183,11 @@ show_info() {
 }
 
 apply_config_change() {
-  local next_config="$1" backup
+  local next_config="$1" backup test_output
   backup="$(mktemp "${XRAY_DIR}/config.json.XXXXXX")"
   cp -p "$CONFIG_FILE" "$backup"
-  if ! "$XRAY_BIN" run -test -config "$next_config" >/dev/null; then
+  if ! test_output="$("$XRAY_BIN" run -test -config "$next_config" 2>&1)"; then
+    [ -n "$test_output" ] && printf '%s\n' "$test_output" >&2
     rm -f "$next_config" "$backup"
     die '配置测试失败，原配置未更改。'
   fi
@@ -217,7 +218,7 @@ socks5_list() {
     fi
     printf '\nSOCKS5（用户名密码认证）\n端口: %s\n用户名: %s\n密码: %s\n分享链接: socks5://%s:%s@%s:%s#SOCKS5-%s\n' \
       "$port" "$user" "$pass" "$(urlencode "$user")" "$(urlencode "$pass")" "$uri_host" "$port" "$port"
-  done < <(jq -r '.inbounds[]? | select((.tag // "") | startswith("socks5-")) | [.tag, (.port|tostring), (.settings.accounts[0].user // ""), (.settings.accounts[0].pass // "")] | @tsv' "$CONFIG_FILE")
+  done < <(jq -r '.inbounds[]? | select((.tag // "") | startswith("socks5-")) | [.tag, (.port|tostring), ((.settings.users // .settings.accounts // [])[0].user // ""), ((.settings.users // .settings.accounts // [])[0].pass // "")] | @tsv' "$CONFIG_FILE")
   if [ "$found" -eq 0 ]; then
     printf '\n当前没有 SOCKS5 入站。可运行 sb add socks5 创建。\n'
   fi
@@ -244,7 +245,7 @@ socks5_add() {
   local next_config
   next_config="$(mktemp "${XRAY_DIR}/config.json.XXXXXX")"
   if ! jq --argjson port "$port" --arg user "$username" --arg pass "$password" \
-    '.inbounds += [{tag:("socks5-" + ($port|tostring)),listen:"0.0.0.0",port:$port,protocol:"socks",settings:{auth:"password",accounts:[{user:$user,pass:$pass}],udp:true}}]' \
+    '.inbounds += [{tag:("socks5-" + ($port|tostring)),listen:"0.0.0.0",port:$port,protocol:"socks",settings:{auth:"password",users:[{user:$user,pass:$pass}],udp:true}}]' \
     "$CONFIG_FILE" >"$next_config"; then
     rm -f "$next_config"
     die '无法更新 SOCKS5 配置。'
