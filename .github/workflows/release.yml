@@ -1,0 +1,28 @@
+name: Main
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: get ver
+        run: |
+          echo "is_sh_ver=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+      - name: tar
+        run: tar --exclude=.git --exclude='sing-box-upstream' -czf code.tar.gz .
+      - name: release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: code.tar.gz
+          tag_name: ${{ env.is_sh_ver }}
