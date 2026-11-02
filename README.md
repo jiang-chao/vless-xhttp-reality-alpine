@@ -10,7 +10,15 @@
 
 ## 一键安装
 
-支持 64 位 `x86_64/amd64` 和 `aarch64/arm64`。请以 `root` 身份，在 Bash 中执行以下任一命令。入口脚本会自动下载完整项目源码后继续安装，无需手动下载、解压仓库：
+支持 64 位 `x86_64/amd64` 和 `aarch64/arm64`。入口脚本会自动下载完整项目源码后继续安装，无需手动下载、解压仓库。
+
+Alpine 最小化系统可能没有预装 Bash 或 curl。请以 `root` 身份先执行下面这条命令；它会安装启动安装器所需的工具，然后运行安装：
+
+```sh
+apk add --no-cache bash curl && bash -c 'bash <(curl -fsSL https://raw.githubusercontent.com/jiang-chao/vless-xhttp-reality-alpine/main/install.sh)'
+```
+
+Ubuntu、Debian、CentOS 及 SUSE 等系统，请以 `root` 身份在 Bash 中执行以下任一命令：
 
 ```sh
 bash <(curl -fsSL https://raw.githubusercontent.com/jiang-chao/vless-xhttp-reality-alpine/main/install.sh)
@@ -22,7 +30,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/jiang-chao/vless-xhttp-reali
 bash <(wget -qO- https://raw.githubusercontent.com/jiang-chao/vless-xhttp-reality-alpine/main/install.sh)
 ```
 
-需要主机可访问 GitHub，预装 Bash，以及 `curl` 或 `wget` 其中之一；安装器会按系统包管理器补齐其他依赖。Alpine 基础系统若没有 Bash，可先运行 `apk add --no-cache bash`。
+需要主机可访问 GitHub。非 Alpine 系统需预装 Bash，以及 `curl` 或 `wget` 其中之一；安装器会按系统包管理器补齐其他依赖。Alpine 请使用上面的专用命令，避免在未安装 curl 时直接调用 curl。
 
 ## 系统支持
 
