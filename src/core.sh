@@ -687,7 +687,13 @@ del() {
             pause
         fi
         rm -rf $is_conf_dir/"$is_config_file"
-        [[ ! $is_new_json ]] && manage restart &
+        if [[ ! $is_new_json ]]; then
+            if [[ $is_wait_restart ]]; then
+                manage restart
+            else
+                manage restart &
+            fi
+        fi
         [[ ! $is_no_del_msg ]] && _green "\n已删除: $is_config_file\n"
 
         [[ $is_caddy ]] && {
@@ -818,6 +824,7 @@ manage() {
 
 # add a config
 add() {
+    local is_wait_restart
     is_lower=${1,,}
     if [[ $is_lower ]]; then
         case $is_lower in
@@ -876,7 +883,9 @@ add() {
             # Keep the previous config until Xray has validated and started successfully.
             [[ $is_change && $is_config_file && $is_config_file != XHTTP-*.json ]] && {
                 is_no_del_msg=1
+                is_wait_restart=1
                 del "$is_config_file" || err "无法删除原配置 ($is_config_file)，请检查服务状态后手动处理。"
+                unset is_wait_restart
                 unset is_no_del_msg
             }
         else
