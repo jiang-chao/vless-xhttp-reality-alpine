@@ -250,8 +250,8 @@ download() {
 
 # get server ip
 get_ip() {
-    export "$(_wget -4 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
-    [[ -z $ip ]] && export "$(_wget -6 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
+    export "$(_wget --timeout=5 --tries=1 -4 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
+    [[ -z $ip ]] && export "$(_wget --timeout=5 --tries=1 -6 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
 }
 
 # check background tasks status

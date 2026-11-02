@@ -133,10 +133,10 @@ get_uuid() {
 
 get_ip() {
     [[ $ip || $is_no_auto_tls || $is_gen || $is_dont_get_ip ]] && return
-    export "$(_wget -4 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
-    [[ ! $ip ]] && export "$(_wget -6 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
+    export "$(_wget --timeout=5 --tries=1 -4 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
+    [[ ! $ip ]] && export "$(_wget --timeout=5 --tries=1 -6 -qO- https://one.one.one.one/cdn-cgi/trace | grep ip=)" &>/dev/null
     [[ ! $ip ]] && {
-        err "获取服务器 IP 失败.."
+        err "无法从 Cloudflare 获取服务器公网 IP（IPv4/IPv6 均不可达）。请检查出口网络，或手动填写公网地址后重试。"
     }
 }
 
