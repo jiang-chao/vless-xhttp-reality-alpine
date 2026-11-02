@@ -38,6 +38,7 @@ warn() {
 # apt-get, yum, zypper or apk
 cmd=$(type -P apt-get || type -P yum || type -P zypper || type -P apk)
 [[ ! $cmd ]] && err "此脚本仅支持 ${yellow}(Ubuntu or Debian or CentOS or SUSE or Alpine)${none}."
+
 if [[ $cmd =~ apk ]]; then
     alpine_version=$(cat /etc/alpine-release 2>/dev/null)
     alpine_major=${alpine_version%%.*}
@@ -45,6 +46,43 @@ if [[ $cmd =~ apk ]]; then
     alpine_minor=${alpine_minor%%.*}
     [[ $alpine_major =~ ^[0-9]+$ && $alpine_minor =~ ^[0-9]+$ ]] || err "无法识别 Alpine 版本: ${alpine_version}"
     (( alpine_major > 3 || (alpine_major == 3 && alpine_minor >= 21) )) || err "此适配要求 Alpine 3.21 或更新版本."
+fi
+
+# A raw GitHub invocation has no adjacent project files; fetch the full source before continuing.
+if [[ ! -f "$project_dir/src/core.sh" || ! -f "$project_dir/sing-box.sh" ]]; then
+    command -v tar >/dev/null 2>&1 || {
+        if [[ $cmd =~ apk ]]; then
+            apk add --no-cache tar || err "安装 tar 失败."
+        elif [[ $cmd =~ apt-get ]]; then
+            apt-get update && apt-get install -y tar || err "安装 tar 失败."
+        elif [[ $cmd =~ yum ]]; then
+            yum install -y tar || err "安装 tar 失败."
+        else
+            zypper --non-interactive install tar || err "安装 tar 失败."
+        fi
+    }
+    bootstrap_dir=$(mktemp -d) || err "创建临时目录失败."
+    trap 'rm -rf "$bootstrap_dir"' EXIT
+    bootstrap_url=https://github.com/jiang-chao/vless-xhttp-reality-alpine/archive/refs/heads/main.tar.gz
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$bootstrap_url" -o "$bootstrap_dir/project.tar.gz" || {
+            err "下载项目源码失败."
+        }
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$bootstrap_dir/project.tar.gz" "$bootstrap_url" || {
+            err "下载项目源码失败."
+        }
+    else
+        err "需要 curl 或 wget 才能下载完整项目."
+    fi
+    mkdir "$bootstrap_dir/project"
+    tar -xzf "$bootstrap_dir/project.tar.gz" --strip-components=1 -C "$bootstrap_dir/project" || {
+        err "解压项目源码失败."
+    }
+    [[ -f "$bootstrap_dir/project/install.sh" && -f "$bootstrap_dir/project/src/core.sh" ]] || err "下载的项目源码不完整."
+    bash "$bootstrap_dir/project/install.sh" "$@"
+    bootstrap_status=$?
+    exit "$bootstrap_status"
 fi
 
 # systemd or openrc

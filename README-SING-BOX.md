@@ -31,7 +31,7 @@
 
 此项目保留原有 sing-box 脚本功能，并额外支持 Alpine Linux 3.21 及更新版本的 OpenRC 环境（包括 Alpine 3.23 LXC）。传统协议仍由 sing-box 提供；新增的 VLESS + XHTTP + REALITY 入站由官方 Xray-core 独立服务承载，因为当前 sing-box 核心没有 XHTTP transport。原作者及许可证信息保留在项目文件中。
 
-Alpine 基础镜像若没有 Bash，先运行 `apk add --no-cache bash`。从本项目仓库克隆或下载完整仓库后，在仓库根目录运行 `bash install.sh`；安装器默认使用本地项目文件，不会再从原脚本仓库下载或更新管理脚本。sing-box 核心和新增 Xray 核心仍分别从各自的官方发行源下载。
+Alpine 基础镜像若没有 Bash，先运行 `apk add --no-cache bash`。其他支持系统可直接执行主 README 中的 `curl` 或 `wget` 一键命令；入口脚本会自动获取完整项目源码，再从本地项目目录安装管理脚本。sing-box 核心和 XHTTP 扩展使用的 Xray 核心仍分别从各自的官方发行源下载。
 
 安装后可通过以下命令管理扩展入站：
 
