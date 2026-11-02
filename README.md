@@ -35,7 +35,7 @@ bash <(wget -qO- https://raw.githubusercontent.com/jiang-chao/vless-xhttp-realit
 
 其他 init 系统、仅有 `dnf` 而没有 `yum` 的系统，以及非上述 64 位架构尚未由安装器支持。NAT/LXC 部署还需在宿主机配置 TCP 端口转发到容器监听端口。
 
-安装完成后，运行 `sing-box` 进入管理菜单。添加 XHTTP 入站可运行 `sing-box add xhttp`；NAT/LXC 部署还需在宿主机配置 TCP 端口转发到容器监听端口。
+安装完成后，运行 `sing-box` 进入管理菜单，在“添加配置”的协议列表中选择 `VLESS-XHTTP-REALITY`；也可运行 `sing-box add xhttp` 快速添加。该协议由集成的 Xray-core 服务承载，NAT/LXC 部署还需在宿主机配置 TCP 端口转发到容器监听端口。
 
 详细说明：
 

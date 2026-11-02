@@ -44,7 +44,7 @@ sing-box xhttp status
 sing-box xhttp update
 ```
 
-快捷添加方式：`sing-box add xhttp`。添加时分别填写容器监听端口和 NAT 公网映射端口；若服务商一对一映射，两者填写相同值。NAT/LXC 必须由宿主机将公网 TCP 端口转发到容器监听端口；分享链接地址要填写 NAT 宿主机的公网 IP 或域名。扩展服务在 Alpine 上由 OpenRC 管理，Xray 配置位于 `/etc/xray`。
+运行 `sing-box` 打开交互菜单，在“添加配置”的协议列表中选择 `VLESS-XHTTP-REALITY`，也可使用快捷命令 `sing-box add xhttp`。添加时分别填写容器监听端口和 NAT 公网映射端口；若服务商一对一映射，两者填写相同值。NAT/LXC 必须由宿主机将公网 TCP 端口转发到容器监听端口；分享链接地址要填写 NAT 宿主机的公网 IP 或域名。此协议由集成的官方 Xray-core 独立服务承载（sing-box 核心目前不支持 XHTTP transport）；扩展服务在 Alpine 上由 OpenRC 管理，Xray 配置位于 `/etc/xray`。
 
 `sing-box update sh` 从本项目发布的 GitHub Releases 获取脚本包；也可更新本地项目文件后重新运行 `bash install.sh`。
 

@@ -20,6 +20,7 @@ protocol_list=(
     Trojan-HTTPUpgrade-TLS
     VLESS-REALITY
     VLESS-HTTP2-REALITY
+    VLESS-XHTTP-REALITY
     AnyTLS
     # Direct
     Socks
@@ -801,6 +802,9 @@ add() {
         rh2)
             is_new_protocol=VLESS-HTTP2-REALITY
             ;;
+        xhttp | vless-xhttp-reality | xhttp-reality)
+            is_new_protocol='VLESS-XHTTP-REALITY'
+            ;;
         ss)
             is_new_protocol=Shadowsocks
             ;;
@@ -834,6 +838,12 @@ add() {
 
     # no prefer protocol
     [[ ! $is_new_protocol ]] && ask set_protocol
+
+    if [[ $is_new_protocol == 'VLESS-XHTTP-REALITY' ]]; then
+        [[ -f $is_sh_dir/src/xhttp.sh ]] || err "找不到 XHTTP 管理脚本: $is_sh_dir/src/xhttp.sh"
+        bash "$is_sh_dir/src/xhttp.sh" add "${@:2}"
+        return
+    fi
 
     if [[ ${is_new_protocol,,} == 'anytls' ]]; then
         is_core_major=$(echo "$is_core_ver" | cut -d. -f1)
