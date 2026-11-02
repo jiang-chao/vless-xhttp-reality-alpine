@@ -121,7 +121,9 @@ is_sh_repo=$author/vless-xhttp-reality-alpine
 local_install=1
 is_pkg="wget tar bash"
 # Alpine: gcompat provides glibc compatibility for prebuilt binaries
-[[ $cmd =~ apk ]] && is_pkg="$is_pkg gcompat jq unzip qrencode curl openssl ca-certificates iproute2"
+[[ $cmd =~ apk ]] && is_pkg="$is_pkg gcompat jq unzip curl openssl ca-certificates iproute2"
+is_optional_pkg=
+[[ $cmd =~ apk ]] && is_optional_pkg="qrencode"
 is_config_json=$is_core_dir/config.json
 tmp_var_lists=(
     tmpcore
@@ -402,9 +404,11 @@ main() {
     # install dependent pkg
     if [[ $cmd =~ apk ]]; then
         # Alpine: force install full versions to replace BusyBox applets
-        apk update &>/dev/null
-        apk add $is_pkg &>/dev/null
-        [[ $? == 0 ]] && >$is_pkg_ok
+        apk add --no-cache $is_pkg || err "Alpine 核心依赖安装失败；上方显示了 apk 错误详情。请检查 /etc/apk/repositories 与网络后重试."
+        >$is_pkg_ok
+        if [[ $is_optional_pkg ]] && ! apk add --no-cache $is_optional_pkg; then
+            msg warn "可选依赖 ${is_optional_pkg} 安装失败；二维码显示功能不可用，可稍后运行: apk add --no-cache ${is_optional_pkg}"
+        fi
     else
         install_pkg $is_pkg &
     fi
