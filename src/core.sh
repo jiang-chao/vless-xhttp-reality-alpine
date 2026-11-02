@@ -708,6 +708,7 @@ del() {
     fi
     unset is_dont_get_ip
     [[ $is_dont_auto_exit ]] && unset is_config_file
+    return 0
 }
 
 # uninstall
