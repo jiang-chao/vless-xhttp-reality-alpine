@@ -1536,7 +1536,11 @@ url_qr() {
             if [[ $(type -P qrencode) ]]; then
                 qrencode -t ANSI "${is_url}"
             else
-                msg "请安装 qrencode: $(_green "$cmd update -y; $cmd install qrencode -y")"
+                if [[ $cmd =~ apk ]]; then
+                    msg "请检查已启用的 Alpine APK 仓库包含 qrencode 后安装: $(_green 'apk add --no-cache qrencode')"
+                else
+                    msg "请安装 qrencode: $(_green "$cmd update -y; $cmd install qrencode -y")"
+                fi
             fi
             msg
             msg "如果无法正常显示或识别, 请在安装 qrencode 后重新生成二维码.\n"

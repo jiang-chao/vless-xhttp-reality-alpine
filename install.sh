@@ -406,8 +406,14 @@ main() {
         # Alpine: force install full versions to replace BusyBox applets
         apk add --no-cache $is_pkg || err "Alpine 核心依赖安装失败；上方显示了 apk 错误详情。请检查 /etc/apk/repositories 与网络后重试."
         >$is_pkg_ok
-        if [[ $is_optional_pkg ]] && ! apk add --no-cache $is_optional_pkg; then
-            msg warn "可选依赖 ${is_optional_pkg} 安装失败；二维码显示功能不可用，可稍后运行: apk add --no-cache ${is_optional_pkg}"
+        if [[ $is_optional_pkg ]] && ! command -v "$is_optional_pkg" >/dev/null 2>&1; then
+            if apk search -x "$is_optional_pkg" 2>/dev/null | grep -q .; then
+                if ! apk add --no-cache "$is_optional_pkg" >/dev/null 2>&1; then
+                    msg warn "可选依赖 ${is_optional_pkg} 安装失败；代理功能不受影响，二维码显示功能不可用."
+                fi
+            else
+                msg warn "当前启用的 APK 仓库未提供 ${is_optional_pkg}，已跳过可选安装；代理功能不受影响，二维码显示功能不可用."
+            fi
         fi
     else
         install_pkg $is_pkg &
