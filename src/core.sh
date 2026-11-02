@@ -814,9 +814,11 @@ manage() {
             [[ ! $is_no_manage_msg ]] && {
                 msg
                 warn "($is_do_msg) $is_do_name_msg 失败"
-                _yellow "检测到运行失败, 自动执行测试运行."
-                get test-run
-                _yellow "测试结束, 请按 Enter 退出."
+                _yellow "检测到运行失败, 自动检查配置."
+                if [[ $is_do_name != caddy ]]; then
+                    $is_core_bin check -c "$is_config_json" -C "$is_conf_dir"
+                fi
+                _yellow "请检查以上错误信息及服务日志."
             }
         fi
     }
