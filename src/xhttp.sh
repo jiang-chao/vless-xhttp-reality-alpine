@@ -44,13 +44,44 @@ need_alpine_or_supported_linux() {
 
 install_dependencies() {
   if [[ -f /etc/alpine-release ]]; then
-    apk add --no-cache bash ca-certificates curl gcompat iproute2 jq openssl tar unzip
+    apk add --no-cache bash ca-certificates curl gcompat iproute2 jq openssl tar unzip \
+      || err 'Alpine 依赖安装失败，请检查 APK 仓库配置和网络后重试。'
     update-ca-certificates >/dev/null 2>&1 || true
   else
-    command -v jq >/dev/null 2>&1 || err '请先安装 jq。'
-    command -v curl >/dev/null 2>&1 || err '请先安装 curl。'
-    command -v unzip >/dev/null 2>&1 || err '请先安装 unzip。'
-    command -v openssl >/dev/null 2>&1 || err '请先安装 openssl。'
+    local missing=() packages=() tool package_manager
+    for tool in jq curl unzip openssl; do
+      command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+    done
+    ((${#missing[@]} == 0)) && return 0
+
+    if command -v apt-get >/dev/null 2>&1; then
+      package_manager=apt
+      packages=("${missing[@]}")
+      apt-get update || err 'APT 软件包索引更新失败，无法自动安装 XHTTP 依赖。'
+      DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}" \
+        || err "APT 依赖安装失败，请检查软件源和网络。缺少命令：${missing[*]}"
+    elif command -v dnf >/dev/null 2>&1; then
+      package_manager=dnf
+      packages=("${missing[@]}")
+      dnf install -y "${packages[@]}" \
+        || err "DNF 依赖安装失败，请检查软件源和网络。缺少命令：${missing[*]}"
+    elif command -v yum >/dev/null 2>&1; then
+      package_manager=yum
+      packages=("${missing[@]}")
+      yum install -y "${packages[@]}" \
+        || err "YUM 依赖安装失败，请检查软件源和网络。缺少命令：${missing[*]}"
+    elif command -v zypper >/dev/null 2>&1; then
+      package_manager=zypper
+      packages=("${missing[@]}")
+      zypper --non-interactive install "${packages[@]}" \
+        || err "Zypper 依赖安装失败，请检查软件源和网络。缺少命令：${missing[*]}"
+    else
+      err "缺少依赖：${missing[*]}。未找到支持的包管理器（apt-get、dnf、yum 或 zypper），请手动安装后重试。"
+    fi
+
+    for tool in "${missing[@]}"; do
+      command -v "$tool" >/dev/null 2>&1 || err "${package_manager} 已运行，但仍未找到 ${tool}，请检查安装结果。"
+    done
   fi
 }
 
