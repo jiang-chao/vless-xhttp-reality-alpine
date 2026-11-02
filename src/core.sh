@@ -447,6 +447,12 @@ change() {
         esac
     fi
     [[ $is_try_change ]] && return
+    if [[ $1 == XHTTP-*.json || $1 == xhttp-*.json ]]; then
+        local xhttp_port=${1#*-}
+        xhttp_port=${xhttp_port%.json}
+        bash "$is_sh_dir/src/xhttp.sh" edit "$xhttp_port"
+        return
+    fi
     [[ $is_dont_auto_exit ]] && {
         get info $1
     } || {
@@ -460,6 +466,12 @@ change() {
         info $1
         [[ $is_auto_get_config ]] && msg "\n自动选择: $is_config_file"
     }
+    if [[ $is_config_file == XHTTP-*.json || $is_config_file == xhttp-*.json ]]; then
+        local xhttp_port=${is_config_file#*-}
+        xhttp_port=${xhttp_port%.json}
+        bash "$is_sh_dir/src/xhttp.sh" edit "$xhttp_port"
+        return
+    fi
     is_old_net=$net
     [[ $is_tcp_http ]] && net=http
     [[ $host ]] && net=$is_protocol-$net-tls
@@ -655,9 +667,20 @@ change() {
 del() {
     # dont get ip
     is_dont_get_ip=1
-    [[ $is_conf_dir_empty ]] && return # not found any json file.
     # get a config file
     [[ ! $is_config_file ]] && get info $1
+    if [[ $is_config_file == XHTTP-*.json || $is_config_file == xhttp-*.json ]]; then
+        local xhttp_port=${is_config_file#*-}
+        xhttp_port=${xhttp_port%.json}
+        if [[ $is_main_start && ! $is_no_del_msg ]]; then
+            msg "\n是否删除配置文件?: $is_config_file"
+            pause
+        fi
+        bash "$is_sh_dir/src/xhttp.sh" del "$xhttp_port" || return 1
+        [[ ! $is_no_del_msg ]] && _green "\n已删除: $is_config_file\n"
+        [[ $is_dont_auto_exit ]] && unset is_config_file
+        return
+    fi
     if [[ $is_config_file ]]; then
         if [[ $is_main_start && ! $is_no_del_msg ]]; then
             msg "\n是否删除配置文件?: $is_config_file"
@@ -770,6 +793,13 @@ manage() {
             ;;
         esac
     fi
+    if [[ $is_do_name != caddy && $is_do =~ ^(start|stop|restart)$ && -d /etc/xray/profiles ]]; then
+        local xhttp_profiles=()
+        shopt -s nullglob
+        xhttp_profiles=(/etc/xray/profiles/[0-9]*.json)
+        shopt -u nullglob
+        ((${#xhttp_profiles[@]} == 0)) || bash "$is_sh_dir/src/xhttp.sh" "$is_do"
+    fi
     [[ $is_test_run && ! $is_new_install ]] && {
         sleep 2
         if [[ ! $(pgrep -f $is_run_bin) ]]; then
@@ -841,7 +871,16 @@ add() {
 
     if [[ $is_new_protocol == 'VLESS-XHTTP-REALITY' ]]; then
         [[ -f $is_sh_dir/src/xhttp.sh ]] || err "找不到 XHTTP 管理脚本: $is_sh_dir/src/xhttp.sh"
-        bash "$is_sh_dir/src/xhttp.sh" add "${@:2}"
+        if bash "$is_sh_dir/src/xhttp.sh" add "${@:2}"; then
+            # Keep the previous config until Xray has validated and started successfully.
+            [[ $is_change && $is_config_file && $is_config_file != XHTTP-*.json ]] && {
+                is_no_del_msg=1
+                del "$is_config_file" || err "无法删除原配置 ($is_config_file)，请检查服务状态后手动处理。"
+                unset is_no_del_msg
+            }
+        else
+            return 1
+        fi
         return
     fi
 
@@ -1108,8 +1147,19 @@ get() {
     file)
         is_file_str=$2
         [[ ! $is_file_str ]] && is_file_str='.json$'
-        # is_all_json=("$(ls $is_conf_dir | grep -E $is_file_str)")
-        readarray -t is_all_json <<<"$(ls $is_conf_dir | grep -E -i "$is_file_str" | sed '/dynamic-port-.*-link/d' | head -233)" # limit max 233 lines for show.
+        mapfile -t is_all_json < <(ls "$is_conf_dir" 2>/dev/null | grep -E -i "$is_file_str" | sed '/dynamic-port-.*-link/d')
+        if [[ -d /etc/xray/profiles ]]; then
+            local xhttp_profile xhttp_port
+            shopt -s nullglob
+            local xhttp_profiles=(/etc/xray/profiles/*.json)
+            shopt -u nullglob
+            for xhttp_profile in "${xhttp_profiles[@]}"; do
+                xhttp_port=$(basename "$xhttp_profile" .json)
+                [[ $xhttp_port =~ ^[0-9]+$ ]] || continue
+                grep -E -i -q -- "$is_file_str" <<<"XHTTP-${xhttp_port}.json" && is_all_json+=("XHTTP-${xhttp_port}.json")
+            done
+        fi
+        is_all_json=("${is_all_json[@]:0:233}") # limit max 233 lines for show.
         [[ ! $is_all_json ]] && err "无法找到相关的配置文件: $2"
         [[ ${#is_all_json[@]} -eq 1 ]] && is_config_file=$is_all_json && is_auto_get_config=1
         [[ ! $is_config_file ]] && {
@@ -1119,6 +1169,12 @@ get() {
         ;;
     info)
         get file $2
+        is_xhttp_profile=
+        if [[ $is_config_file == XHTTP-*.json || $is_config_file == xhttp-*.json ]]; then
+            is_xhttp_profile=1
+            is_config_name=$is_config_file
+            return
+        fi
         if [[ $is_config_file ]]; then
             is_json_str=$(cat $is_conf_dir/"$is_config_file" | sed s#//.*##)
             is_json_data=$(jq '(.inbounds[0]|.type,.listen_port,(.users[0]|.uuid,.password,.username),.method,.password,.override_port,.override_address,(.transport|.type,.path,.headers.host),(.tls|.server_name,.reality.private_key)),(.outbounds[1].tag)' <<<$is_json_str)
@@ -1368,6 +1424,12 @@ get() {
 info() {
     if [[ ! $is_protocol ]]; then
         get info $1
+    fi
+    if [[ $is_xhttp_profile ]]; then
+        local xhttp_port=${is_config_file#*-}
+        xhttp_port=${xhttp_port%.json}
+        bash "$is_sh_dir/src/xhttp.sh" info "$xhttp_port"
+        return
     fi
     # is_color=$(shuf -i 41-45 -n1)
     is_color=44

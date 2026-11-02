@@ -262,6 +262,94 @@ profile_link() {
   share_profile "$public_port" "$host" "$sni" "$uuid" "$pbk" "$sid" "$path"
 }
 
+show_profile() {
+  local port="$1" host="${2:-}" profile public_port sni path uuid
+  valid_port "$port" || err '端口必须是 1–65535 的整数。'
+  port="$(normalize_port "$port")"
+  host="${host:-$(detect_host)}"
+  profile="$XRAY_CONF_DIR/$port.json"
+  [[ -f $profile ]] || err "未找到 XHTTP 端口 ${port}。"
+  public_port="$(jq -r '.publicPort // .inbounds[0].port' "$profile")"
+  sni="$(jq -r '.inbounds[0].streamSettings.realitySettings.serverNames[0]' "$profile")"
+  path="$(jq -r '.inbounds[0].streamSettings.xhttpSettings.path' "$profile")"
+  uuid="$(jq -r '.inbounds[0].settings.clients[0].id' "$profile")"
+  printf '%s\n' "------------- XHTTP-${port}.json -------------" \
+    '协议 (protocol)       = vless' \
+    "地址 (address)        = ${host}" \
+    "监听端口 (listen)     = ${port}" \
+    "公网端口 (NAT)        = ${public_port}" \
+    "用户ID (id)           = ${uuid}" \
+    '传输协议 (network)    = xhttp' \
+    '传输层安全 (TLS)      = reality' \
+    "SNI (serverName)      = ${sni}" \
+    "路径 (path)           = ${path}" \
+    '------------- 链接 (URL) -------------'
+  profile_link "$port" "$host"
+}
+
+edit_profile() {
+  need_root
+  need_alpine_or_supported_linux
+  install_dependencies
+  local old_port="$1" old_profile old_backup new_port public_port sni path current_public current_sni current_path
+  valid_port "$old_port" || err '用法：sing-box xhttp edit PORT [NEW_PORT [PUBLIC_PORT [SNI [PATH]]]]'
+  old_port="$(normalize_port "$old_port")"
+  old_profile="$XRAY_CONF_DIR/$old_port.json"
+  [[ -f $old_profile ]] || err "未找到 XHTTP 端口 ${old_port}。"
+  current_public="$(jq -r '.publicPort // .inbounds[0].port' "$old_profile")"
+  current_sni="$(jq -r '.inbounds[0].streamSettings.realitySettings.serverNames[0]' "$old_profile")"
+  current_path="$(jq -r '.inbounds[0].streamSettings.xhttpSettings.path' "$old_profile")"
+  new_port="${2:-$(ask_value '新的容器监听 TCP 端口' "$old_port")}"
+  public_port="${3:-$(ask_value '新的 NAT 公网映射端口' "$current_public")}"
+  sni="${4:-$(ask_value '新的 REALITY SNI/目标域名' "$current_sni")}"
+  path="${5:-$(ask_value '新的 XHTTP 路径' "$current_path")}"
+  valid_port "$new_port" || err '监听端口必须是 1–65535 的整数。'
+  valid_port "$public_port" || err '公网端口必须是 1–65535 的整数。'
+  new_port="$(normalize_port "$new_port")"
+  public_port="$(normalize_port "$public_port")"
+  valid_host "$sni" || err 'SNI 须为有效域名。'
+  valid_path "$path" || err 'XHTTP 路径必须以 / 开头且不能包含空格。'
+  [[ $new_port == "$old_port" || ! -e "$XRAY_CONF_DIR/$new_port.json" ]] || err "端口 ${new_port} 已有 XHTTP 配置。"
+  if [[ $new_port != "$old_port" ]] && command -v ss >/dev/null 2>&1 && ss -H -ltn "sport = :${new_port}" | grep -q .; then
+    err "容器 TCP 端口 ${new_port} 已被占用。"
+  fi
+  if [[ -d /etc/sing-box/conf ]]; then
+    local singbox_profile
+    shopt -s nullglob
+    local singbox_profiles=(/etc/sing-box/conf/*.json)
+    shopt -u nullglob
+    for singbox_profile in "${singbox_profiles[@]}"; do
+      if jq -e --argjson port "$new_port" 'any(.inbounds[]?; .listen_port == $port)' "$singbox_profile" >/dev/null; then
+        err "容器 TCP 端口 ${new_port} 已被 sing-box 配置占用（${singbox_profile}）。"
+      fi
+    done
+  fi
+
+  old_backup="$XRAY_CONF_DIR/.${old_port}.json.$$"
+  local new_profile="$XRAY_CONF_DIR/$new_port.json" staged="$XRAY_CONF_DIR/.${new_port}.json.$$.tmp"
+  jq --argjson port "$new_port" --argjson public_port "$public_port" --arg sni "$sni" --arg path "$path" \
+    '.publicPort=$public_port | .inbounds[0].port=$port | .inbounds[0].streamSettings.realitySettings.dest=($sni+":443") | .inbounds[0].streamSettings.realitySettings.serverNames=[$sni] | .inbounds[0].streamSettings.xhttpSettings.path=$path' \
+    "$old_profile" >"$staged"
+  chmod 600 "$staged"
+  mv "$old_profile" "$old_backup"
+  mv "$staged" "$new_profile"
+  if ! write_aggregate_config; then
+    rm -f "$new_profile"
+    mv "$old_backup" "$old_profile"
+    err 'Xray 配置测试失败；修改已取消，原配置已恢复。'
+  fi
+  if ! service_action restart; then
+    rm -f "$new_profile"
+    mv "$old_backup" "$old_profile"
+    write_aggregate_config || true
+    service_action restart >/dev/null 2>&1 || true
+    err 'Xray 服务重启失败；修改已取消，原配置已恢复。'
+  fi
+  rm -f "$old_backup"
+  info "已更新 XHTTP 配置：${old_port} -> ${new_port}。"
+  show_profile "$new_port"
+}
+
 list_profiles() {
   local profile port host
   shopt -s nullglob
@@ -328,8 +416,9 @@ main() {
     add|install) add_profile "$@" ;;
     list|ls) list_profiles "$@" ;;
     info|url)
-      if [[ -n ${1:-} ]]; then profile_link "$1" "${2:-}"; else list_profiles "${2:-}"; fi
+      if [[ -n ${1:-} ]]; then show_profile "$1" "${2:-}"; else list_profiles "${2:-}"; fi
       ;;
+    edit|change) edit_profile "${@}" ;;
     del|delete|remove) delete_profile "${1:-}" ;;
     restart|start|stop|status)
       need_root
@@ -352,6 +441,7 @@ main() {
   sing-box xhttp add [PORT [PUBLIC_HOST [SNI [PATH [PUBLIC_PORT]]]]]  添加 VLESS + XHTTP + REALITY
   sing-box xhttp list [PUBLIC_HOST]                     列出配置与分享链接
   sing-box xhttp info [PORT [PUBLIC_HOST]]              显示分享链接
+  sing-box xhttp edit PORT [NEW_PORT [PUBLIC_PORT [SNI [PATH]]]] 修改配置
   sing-box xhttp del PORT                               删除配置
   sing-box xhttp status|start|stop|restart              管理 Xray XHTTP 服务
   sing-box xhttp update                                 更新 Xray 内核

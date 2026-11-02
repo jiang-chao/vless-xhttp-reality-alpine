@@ -39,10 +39,13 @@ Alpine 基础镜像若没有 Bash，先运行 `apk add --no-cache bash`。其他
 sing-box xhttp add
 sing-box xhttp list
 sing-box xhttp info 443
+sing-box xhttp edit 443
 sing-box xhttp del 443
 sing-box xhttp status
 sing-box xhttp update
 ```
+
+XHTTP 配置也会出现在主菜单的“查看配置”“更改配置”和“删除配置”列表中。更改时可调整容器监听端口、NAT 公网端口、REALITY SNI 和 XHTTP 路径；主菜单的 sing-box 服务运行管理也会同步管理 Xray XHTTP 服务。将现有 sing-box 配置切换为 XHTTP 时，旧配置仅在新 XHTTP 服务成功启动后删除。
 
 运行 `sing-box` 打开交互菜单，在“添加配置”的协议列表中选择 `VLESS-XHTTP-REALITY`，也可使用快捷命令 `sing-box add xhttp`。添加时分别填写容器监听端口和 NAT 公网映射端口；若服务商一对一映射，两者填写相同值。NAT/LXC 必须由宿主机将公网 TCP 端口转发到容器监听端口；分享链接地址要填写 NAT 宿主机的公网 IP 或域名。此协议由集成的官方 Xray-core 独立服务承载（sing-box 核心目前不支持 XHTTP transport）；扩展服务在 Alpine 上由 OpenRC 管理，Xray 配置位于 `/etc/xray`。
 
