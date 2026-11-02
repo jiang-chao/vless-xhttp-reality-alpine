@@ -356,7 +356,7 @@ create() {
             create caddy $net
         }
         # restart core
-        manage restart &
+        manage restart
         ;;
     client)
         is_tls=tls
