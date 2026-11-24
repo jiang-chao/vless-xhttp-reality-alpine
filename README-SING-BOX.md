@@ -43,11 +43,14 @@ sing-box xhttp edit 443
 sing-box xhttp del 443
 sing-box xhttp status
 sing-box xhttp update
+sing-box xhttp sni
 ```
 
 XHTTP 配置也会出现在主菜单的“查看配置”“更改配置”和“删除配置”列表中。更改时可调整容器监听端口、NAT 公网端口、REALITY SNI 和 XHTTP 路径；主菜单的 sing-box 服务运行管理也会同步管理 Xray XHTTP 服务。将现有 sing-box 配置切换为 XHTTP 时，旧配置仅在新 XHTTP 服务成功启动后删除。
 
 运行 `sing-box` 打开交互菜单，在“添加配置”的协议列表中选择 `VLESS-XHTTP-REALITY`，也可使用快捷命令 `sing-box add xhttp`。添加时分别填写容器监听端口和 NAT 公网映射端口；若服务商一对一映射，两者填写相同值。NAT/LXC 必须由宿主机将公网 TCP 端口转发到容器监听端口；分享链接地址要填写 NAT 宿主机的公网 IP 或域名。此协议由集成的官方 Xray-core 独立服务承载（sing-box 核心目前不支持 XHTTP transport）；扩展服务在 Alpine 上由 OpenRC 管理，Xray 配置位于 `/etc/xray`。
+
+REALITY 的 SNI/目标站点在未手动指定时，会从 `src/sni.sh` 的精选列表中自动选择：列表为美国西海岸与日本均有节点的大型非 Cloudflare 厂商站点（根路径 200、支持 TLS 1.3 与 H2，不含 .gov、银行、支付类域名，也不含国内域名）。脚本会并行测试各候选站点的 TCP 443 延迟（有 `openssl` 时同时校验 TLS 1.3 + H2），选择延迟最低者；全部不可达时随机选择。运行 `sing-box sni-test [域名...]` 或 `sing-box xhttp sni [域名...]` 可查看延迟排名；设置环境变量 `SNI_TEST=0` 可跳过测速。更换站点只需编辑 `sni.sh` 中的 `sni_candidates`，并确认目标站点从你的 VPS 可达。
 
 `sing-box update sh` 从本项目发布的 GitHub Releases 获取脚本包；也可更新本地项目文件后重新运行 `bash install.sh`。
 

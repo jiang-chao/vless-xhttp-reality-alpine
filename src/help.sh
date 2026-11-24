@@ -36,6 +36,7 @@ show_help() {
             # "   type [name] [type | auto]                       更改伪装类型"
             "   method [name] [method | auto]                   更改加密方式"
             "   sni [name] [ ip | domain]                       更改 serverName"
+            "   sni-test [domain...]                            测试 SNI 候选站点延迟并推荐"
             # "   seed [name] [seed | auto]                       更改 mKCP seed"
             "   new [name] [...]                                更改协议"
             "   web [name] [domain]                             更改伪装网站\n"

@@ -13,8 +13,11 @@ readonly XRAY_BIN='/usr/local/bin/xray'
 readonly SERVICE='xray-xhttp'
 readonly SERVICE_FILE="/etc/init.d/${SERVICE}"
 readonly SYSTEMD_FILE="/etc/systemd/system/${SERVICE}.service"
+SNI_LIB="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/sni.sh"
 readonly XRAY_RELEASE_API='https://api.github.com/repos/XTLS/Xray-core/releases/latest'
 
+# shellcheck source=sni.sh
+[[ -f $SNI_LIB ]] && . "$SNI_LIB"
 err() { printf '错误：%s\n' "$*" >&2; exit 1; }
 info() { printf '%s\n' "$*"; }
 need_root() { [[ ${EUID} -eq 0 ]] || err '请使用 root 运行。'; }
@@ -201,6 +204,10 @@ ask_value() {
   printf '%s' "${answer:-$default}"
 }
 
+default_sni() {
+  if declare -F sni_select >/dev/null; then sni_select; else printf '%s' 'www.apple.com'; fi
+}
+
 detect_host() { curl -4fsS --max-time 8 https://api64.ipify.org 2>/dev/null || printf '%s' 'YOUR_PUBLIC_IP_OR_DOMAIN'; }
 
 add_profile() {
@@ -216,7 +223,7 @@ add_profile() {
   [[ -n $public_port ]] || public_port="$(ask_value 'NAT 公网映射端口（非 NAT 填与监听端口相同值）' "$port")"
   valid_port "$public_port" || err '公网端口必须是 1–65535 的整数。'
   public_port=$((10#$public_port))
-  [[ -n $sni ]] || sni="$(ask_value 'REALITY SNI/目标域名' 'www.cloudflare.com')"
+  [[ -n $sni ]] || sni="$(ask_value 'REALITY SNI/目标域名（自动测速选择延迟最低）' "$(default_sni)")"
   valid_host "$sni" || err 'SNI 须为有效域名。'
   [[ -n $path ]] || path="$(ask_value 'XHTTP 路径' "/xhttp-$(openssl rand -hex 8)")"
   valid_path "$path" || err 'XHTTP 路径必须以 / 开头且不能包含空格。'
@@ -455,6 +462,10 @@ main() {
       need_root
       service_action "$action"
       ;;
+    sni|sni-test)
+      declare -F sni_report >/dev/null || err '缺少 sni.sh。'
+      sni_report "$@"
+      ;;
     update)
       need_root
       need_alpine_or_supported_linux
@@ -475,6 +486,7 @@ main() {
   sing-box xhttp edit PORT [NEW_PORT [PUBLIC_PORT [SNI [PATH]]]] 修改配置
   sing-box xhttp del PORT                               删除配置
   sing-box xhttp status|start|stop|restart              管理 Xray XHTTP 服务
+  sing-box xhttp sni [DOMAIN...]                        测试 SNI 候选站点延迟
   sing-box xhttp update                                 更新 Xray 内核
 
 快捷方式：sing-box add xhttp [PORT [PUBLIC_HOST [SNI [PATH [PUBLIC_PORT]]]]]

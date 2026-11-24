@@ -85,14 +85,9 @@ change_list=(
     "更改伪装网站"
     "更改用户名 (Username)"
 )
-servername_list=(
-    www.amazon.com
-    www.ebay.com
-    www.paypal.com
-    www.cloudflare.com
-    dash.cloudflare.com
-    aws.amazon.com
-)
+# REALITY SNI candidates live in sni.sh (non-Cloudflare, TLS 1.3 + H2, global CDN).
+. "$is_sh_dir/src/sni.sh"
+servername_list=("${sni_candidates[@]}")
 
 # shuf fallback for systems without shuf (e.g., Alpine BusyBox)
 if ! type -P shuf &>/dev/null; then
@@ -150,6 +145,10 @@ get_port() {
         tmp_port=$(shuf -i 445-65535 -n 1)
         [[ ! $(is_test port_used $tmp_port) && $tmp_port != $port ]] && break
     done
+}
+
+get_servername() {
+    sni_select "${servername_list[@]}"
 }
 
 get_pbk() {
@@ -628,7 +627,7 @@ change() {
         # new serverName
         is_new_servername=$3
         [[ ! $is_reality ]] && err "($is_config_file) 不支持更改 serverName."
-        [[ $is_auto ]] && is_new_servername=$is_random_servername
+        [[ $is_auto ]] && is_new_servername=$(get_servername)
         [[ ! $is_new_servername ]] && ask string is_new_servername "请输入新的 serverName:"
         is_servername=$is_new_servername
         [[ $(grep -i "^233boy.com$" <<<$is_servername) ]] && {
@@ -1325,7 +1324,7 @@ get() {
             ;;
         *reality*)
             net=reality
-            [[ ! $is_servername ]] && is_servername=$is_random_servername
+            [[ ! $is_servername ]] && is_servername=$(get_servername)
             [[ ! $is_private_key ]] && get_pbk
             is_json_add="tls:{enabled:true,server_name:\"$is_servername\",reality:{enabled:true,handshake:{server:\"$is_servername\",server_port:443},private_key:\"$is_private_key\",short_id:[\"\"]}}"
             [[ $is_lower =~ "http" ]] && {
@@ -1865,6 +1864,9 @@ main() {
         ;;
     ssss | ss2022)
         get $@
+        ;;
+    sni-test | snitest)
+        sni_report "${@:2}"
         ;;
     s | status)
         msg "\n$is_core_name $is_core_ver: $is_core_status\n"

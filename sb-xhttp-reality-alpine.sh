@@ -308,7 +308,7 @@ install_all() {
   fi
   PORT="$(ask_default '监听端口（需在 NAT 宿主机映射 TCP）' '443')"
   valid_port "$PORT" || die '端口必须是 1–65535 的整数。'
-  SNI="$(ask_default 'REALITY SNI/伪装站（自动默认）' 'www.cloudflare.com')"
+  SNI="$(ask_default 'REALITY SNI/伪装站（自动默认）' 'www.apple.com')"
   valid_hostname "$SNI" || die 'SNI 必须是合法域名，且不要包含 https:// 或端口。'
   PUBLIC_HOST="$(ask_default '分享链接中的公网 IP 或域名（NAT 环境请填宿主机公网地址）' "$(detect_public_host)")"
   [ -n "$PUBLIC_HOST" ] || die '公网地址不能为空。'
